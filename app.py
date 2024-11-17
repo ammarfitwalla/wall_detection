@@ -1,3 +1,4 @@
+import time
 import streamlit as st
 from PIL import Image
 import custom_wall_detection
@@ -21,6 +22,7 @@ if uploaded_file is not None:
             # Determine how many parts to split the image into based on its size
             rows, cols = custom_wall_detection.determine_split(image)
 
+            time.sleep(0.5)
             # Split the image into sub-images if necessary
             if rows > 1 or cols > 1:
                 sub_images, sub_height, sub_width = custom_wall_detection.split_image(image, rows, cols)
@@ -36,6 +38,7 @@ if uploaded_file is not None:
                 # Process the whole image if no splitting is necessary
                 stitched_image = custom_wall_detection.process_sub_image(image)
 
+            time.sleep(0.5)
             # Convert the processed NumPy array to an image
             processed_image = Image.fromarray(stitched_image)
 
