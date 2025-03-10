@@ -15,7 +15,6 @@ from paddleocr import PaddleOCR
 def determine_split(image):
     height, width= image.shape
     check_split = height if height > width else width
-    print(check_split)
     if check_split <= 2000:
         return 1, 1  # No splitting for images smaller than 2000x2000
     elif 2000 <= check_split <= 4000:
