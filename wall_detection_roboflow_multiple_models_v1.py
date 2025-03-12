@@ -2,6 +2,7 @@ import os
 from inference_sdk import InferenceConfiguration, InferenceHTTPClient
 import cv2
 import numpy as np
+import pandas as pd
 
 # Function to initialize the client
 def initialize_client(api_url, api_key):
@@ -21,13 +22,11 @@ import os
 import cv2
 import numpy as np
 
-import os
-import cv2
-import numpy as np
-
+# Function to draw bounding boxes on the image
 def draw_bounding_boxes(image, raw_input_image, process_image_path, result, label_colors, object_counts, color_mapping):
     input_image = raw_input_image.copy()  # Copy the original image
     object_images = {}  # Dictionary to store images for each object type
+    bounding_boxes = []  # List to store bounding box details for CSV
 
     alpha_main = 0.15  # Lighter transparency for main image
     alpha_segregated = 0.3  # Slightly darker transparency for segregated images
@@ -50,6 +49,15 @@ def draw_bounding_boxes(image, raw_input_image, process_image_path, result, labe
         y1 = int(prediction['y'] - prediction['height'] / 2)
         x2 = x1 + int(prediction['width'])
         y2 = y1 + int(prediction['height'])
+
+        # Store bounding box details for CSV
+        bounding_boxes.append({
+            "xmin": x1,
+            "ymin": y1,
+            "xmax": x2,
+            "ymax": y2,
+            "object_detected": object_name
+        })
 
         # Initialize a separate image for each object type
         if object_name not in object_images:
@@ -79,6 +87,14 @@ def draw_bounding_boxes(image, raw_input_image, process_image_path, result, labe
     for obj_name, obj_img in object_images.items():
         save_path = os.path.join(process_image_path, obj_name, f"{obj_name}.png")
         cv2.imwrite(save_path, obj_img)
+
+    # Convert bounding box list to DataFrame and save as CSV
+    df = pd.DataFrame(bounding_boxes)
+    csv_path = os.path.join(process_image_path, "output.csv")
+    df.to_csv(csv_path, index=False)
+
+    # return csv_path
+
 
 
 # Function to run the pipeline

@@ -1,6 +1,7 @@
 import shutil
 import time
 import cv2
+import pandas as pd
 import streamlit as st
 import uuid
 from PIL import Image
@@ -11,7 +12,7 @@ import os
 import config
 
 # Title of the app
-st.title("Wall Detection Image Uploader")
+st.title("Floor Plan Object Detection")
 
 # Define the path to sample images
 sample_images_path = "sample_images"
@@ -93,64 +94,11 @@ with st.spinner("Processing the image..."):
 
         # Display the processed image
         # st.write("**Processed Image with Detected Walls:**")
+        st.markdown("<hr style='border: 2px solid white; margin: 20px 0;'>", unsafe_allow_html=True)
+
         st.markdown("<h2 style='text-align: center; color: white;'>Processed Image with All Detected Objects</h2>", unsafe_allow_html=True)
         
         st.image(processed_image, caption="Processed Image")
-
-        # Add explanatory boxes
-        # st.markdown(
-        #     """
-        #     <style>
-        #     .description-box {
-        #         display: flex;
-        #         align-items: center;
-        #         margin-bottom: 10px;
-        #     }
-        #     .color-box {
-        #         width: 20px;
-        #         height: 20px;
-        #         margin-right: 10px;
-        #     }
-        #     .red-box { background-color: red; }
-        #     .green-box { background-color: green; }
-        #     .blue-box { background-color: blue; }
-        #     .purple-box { background-color: purple; }
-        #     .orange-box { background-color: orange; }
-        #     </style>
-        #     <div class="description-box">
-        #         <div class="color-box orange-box"></div>
-        #         <p>Orange boxes represent detected detected walls.</p>
-        #     </div>
-        #     <div class="description-box">
-        #         <div class="color-box red-box"></div>
-        #         <p>Red boxes represents detected doors.</p>
-        #     </div>
-        #     <div class="description-box">
-        #         <div class="color-box blue-box"></div>
-        #         <p>Blue boxes represent detected bathrooms.</p>
-        #     </div>
-        #     <div class="description-box">
-        #         <div class="color-box green-box"></div>
-        #         <p>Green lines represent detected sinks.</p>
-        #     </div>
-        #     <div class="description-box">
-        #         <div class="color-box purple-box"></div>
-        #         <p>Purple boxes represent detected toilets.</p>
-        #     </div>
-        #     """,
-        #     unsafe_allow_html=True,
-        # )
-        # st.markdown(
-        #                 f"""
-        #                 <div style="border: 1px solid #ccc; padding: 10px; border-radius: 5px; background-color: black;">
-        #                     <h4>Detected Object Counts:</h4>
-        #                     <ul>
-        #                     {"".join([f"<li><strong>{key.capitalize()}:</strong> {value}</li>" for key, value in object_counts.items()])}
-        #                     </ul>
-        #                 </div>
-        #                 """,
-        #                 unsafe_allow_html=True,
-        #             )
 
         if not object_counts:
             st.markdown("<h3 style='color: white;'>No Objects Detected!</h3>", unsafe_allow_html=True)
@@ -164,15 +112,34 @@ with st.spinner("Processing the image..."):
             }
 
             # st.write("**Detected Objects:**")
-            st.markdown("<h2 style='text-align: center; color: white;'>All Detected Objects</h2>", unsafe_allow_html=True)
+            st.markdown("<hr style='border: 2px solid white; margin: 20px 0;'>", unsafe_allow_html=True)
 
+            st.markdown("<h2 style='text-align: center; color: white;'>All Detected Objects</h2>", unsafe_allow_html=True)
 
             # Dynamically generate markdown based on object_counts
             for obj, count in object_counts.items():
                 color_emoji = color_map.get(obj, '⬜')  # Default to white if not found
                 st.markdown(f"{color_emoji} **{obj.capitalize()}:** {count}")
 
+            # CSV File Download Button
+            csv_path = os.path.join(user_folder, "output.csv")
+            
+            if os.path.exists(csv_path):
+                df = pd.read_csv(csv_path)  # Read CSV file
+                csv_data = df.to_csv(index=False).encode('utf-8')  # Convert to CSV format
+
+                # st.markdown("<hr style='border: 2px solid white; margin: 30px 20px;'>", unsafe_allow_html=True)
+                # st.markdown("<h3 style='text-align: center; color: white;'>📥 Download Data in .csv Format</h3>", unsafe_allow_html=True)
+                
+                st.download_button(
+                    label="📂 Download CSV",
+                    data=csv_data,
+                    file_name="otuput.csv",
+                    mime="text/csv"
+                )
+
             st.markdown("<hr style='border: 2px solid white; margin: 30px 0;'>", unsafe_allow_html=True)
+            
 
             # Display detected object images below the main output image
             # st.write("**Detected Object Breakdown:**")
