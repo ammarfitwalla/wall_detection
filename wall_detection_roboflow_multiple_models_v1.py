@@ -1,5 +1,7 @@
+import os
 from inference_sdk import InferenceConfiguration, InferenceHTTPClient
 import cv2
+import numpy as np
 
 # Function to initialize the client
 def initialize_client(api_url, api_key):
@@ -15,15 +17,33 @@ def run_inference(client, image_path, model_id, confidence_threshold):
     result = client.infer(image_path, model_id=model_id)
     return result
 
-# Function to draw bounding boxes
-def draw_bounding_boxes(image, result, label_colors, object_counts, color_mapping):
+import os
+import cv2
+import numpy as np
+
+import os
+import cv2
+import numpy as np
+
+def draw_bounding_boxes(image, raw_input_image, process_image_path, result, label_colors, object_counts, color_mapping):
+    input_image = raw_input_image.copy()  # Copy the original image
+    object_images = {}  # Dictionary to store images for each object type
+
+    alpha_main = 0.15  # Lighter transparency for main image
+    alpha_segregated = 0.3  # Slightly darker transparency for segregated images
+
     for prediction in result['predictions']:
         object_name = prediction['class'].lower()
 
         # Skip objects not in label colors
         if object_name not in label_colors:
             continue
+
         color = label_colors[object_name]
+
+        # Create a new subfolder for this object type if it doesn't exist
+        object_folder = os.path.join(process_image_path, object_name)
+        os.makedirs(object_folder, exist_ok=True)
 
         # Extract coordinates
         x1 = int(prediction['x'] - prediction['width'] / 2)
@@ -31,12 +51,35 @@ def draw_bounding_boxes(image, result, label_colors, object_counts, color_mappin
         x2 = x1 + int(prediction['width'])
         y2 = y1 + int(prediction['height'])
 
-        # Draw bounding box
+        # Initialize a separate image for each object type
+        if object_name not in object_images:
+            object_images[object_name] = input_image.copy()
+
+        # Create overlays for both main and segregated images
+        overlay_main = image.copy()
+        overlay_object = object_images[object_name].copy()
+
+        # Fill bounding boxes with solid color
+        cv2.rectangle(overlay_main, (x1, y1), (x2, y2), color, -1)  # Main image
+        cv2.rectangle(overlay_object, (x1, y1), (x2, y2), color, -1)  # Segregated image
+
+        # Blend overlays with transparency
+        cv2.addWeighted(overlay_main, alpha_main, image, 1 - alpha_main, 0, image)  # Main image (lighter)
+        cv2.addWeighted(overlay_object, alpha_segregated, object_images[object_name], 1 - alpha_segregated, 0, object_images[object_name])  # Segregated images (stronger)
+
+        # Draw bounding box outlines (to maintain visibility)
+        cv2.rectangle(object_images[object_name], (x1, y1), (x2, y2), color, 2)
         cv2.rectangle(image, (x1, y1), (x2, y2), color, 2)
 
-        # Count the objects
+        # Update object count
         object_counts[object_name] = object_counts.get(object_name, 0) + 1
         color_mapping[object_name] = color
+
+    # Save all object-specific images after looping
+    for obj_name, obj_img in object_images.items():
+        save_path = os.path.join(process_image_path, obj_name, f"{obj_name}.png")
+        cv2.imwrite(save_path, obj_img)
+
 
 # Function to run the pipeline
 def process_image(api_url, api_key, image_path, image, models):
@@ -45,15 +88,22 @@ def process_image(api_url, api_key, image_path, image, models):
     # Load the image
     # image = cv2.imread(image_path)
     image = cv2.cvtColor(image, cv2.COLOR_GRAY2BGR)
+
+    # Initialize variables for object counts and color mapping
     object_counts = {}
     color_mapping = {}
+
+    process_image_path = image_path.split(os.sep)[:-1]
+    process_image_path = os.sep.join(process_image_path)
+
+    input_image = image.copy()
 
     # Run inference on all models and draw bounding boxes
     for model_name, config in models.items():
         if not config['display']:
             continue
         result = run_inference(client, image_path, config['model_id'], config['confidence_threshold'])
-        draw_bounding_boxes(image, result, config['label_colors'], object_counts, color_mapping)
+        draw_bounding_boxes(image, input_image, process_image_path, result, config['label_colors'], object_counts, color_mapping)
 
     # cv2.imshow("Image", image)
     # cv2.waitKey(0)

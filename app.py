@@ -1,3 +1,4 @@
+import shutil
 import time
 import cv2
 import streamlit as st
@@ -27,17 +28,35 @@ image_source = None
 uploaded_file_path = None
 
 # Determine the source image (uploaded or sample)
-if uploaded_file is not None:
-    unique_id = str(uuid.uuid4())
-    file_name = f"{unique_id}_{uploaded_file.name}"
-    with open(os.path.join("user_input_images", file_name), "wb") as f:
+# Ensure the base directory exists
+base_dir = "user_input_images"
+os.makedirs(base_dir, exist_ok=True)
+
+unique_id = str(uuid.uuid4())  # Generate a unique ID for every session
+user_folder = os.path.join(base_dir, unique_id)  # Create user-specific folder
+
+if "uploaded_file" in locals() and uploaded_file is not None:
+    os.makedirs(user_folder, exist_ok=True)  # Ensure the folder exists
+    file_name = uploaded_file.name  # Keep the original filename
+    file_path = os.path.join(user_folder, file_name)  # Define the path
+
+    with open(file_path, "wb") as f:
         f.write(uploaded_file.getbuffer())
-    uploaded_file_path = os.path.join("user_input_images", file_name)  # set the path
-    image_source = uploaded_file_path  
+
+    image_source = file_path  # Set image source
     st.image(uploaded_file, caption="Uploaded Image")
+
 elif selected_sample != "None":
-    image_source = os.path.join(sample_images_path, selected_sample)
+    os.makedirs(user_folder, exist_ok=True)  # Ensure the folder exists
+    sample_image_path = os.path.join(sample_images_path, selected_sample)
+    file_name = selected_sample  # Keep the sample filename
+    file_path = os.path.join(user_folder, file_name)  # Define the path
+
+    shutil.copy(sample_image_path, file_path)  # Copy sample image to the new folder
+
+    image_source = file_path  # Set image source
     st.image(image_source, caption=f"Sample Image: {selected_sample}")
+
 else:
     st.info("Please upload an image or select a sample image from the left sidebar to proceed.")
     st.stop()
@@ -73,7 +92,9 @@ with st.spinner("Processing the image..."):
         processed_image = Image.fromarray(stitched_image)
 
         # Display the processed image
-        st.write("**Processed Image with Detected Walls:**")
+        # st.write("**Processed Image with Detected Walls:**")
+        st.markdown("<h2 style='text-align: center; color: white;'>Processed Image with All Detected Objects</h2>", unsafe_allow_html=True)
+        
         st.image(processed_image, caption="Processed Image")
 
         # Add explanatory boxes
@@ -142,12 +163,33 @@ with st.spinner("Processing the image..."):
                 'toilet': '🟣'
             }
 
-            st.write("**Detected Objects:**")
+            # st.write("**Detected Objects:**")
+            st.markdown("<h2 style='text-align: center; color: white;'>All Detected Objects</h2>", unsafe_allow_html=True)
+
 
             # Dynamically generate markdown based on object_counts
             for obj, count in object_counts.items():
                 color_emoji = color_map.get(obj, '⬜')  # Default to white if not found
                 st.markdown(f"{color_emoji} **{obj.capitalize()}:** {count}")
+
+            st.markdown("<hr style='border: 2px solid white; margin: 30px 0;'>", unsafe_allow_html=True)
+
+            # Display detected object images below the main output image
+            # st.write("**Detected Object Breakdown:**")
+            st.markdown("<h2 style='text-align: center; color: white;'>🔍 Detected Objects Breakdown</h2>", unsafe_allow_html=True)
+
+            # Iterate through detected objects and display corresponding images
+            for obj, count in object_counts.items():
+                st.markdown("<hr style='border: 1px solid white; margin: 30px 0;'>", unsafe_allow_html=True)
+                obj_folder = os.path.join(user_folder, obj)  # Folder containing images for this object
+                obj_image_path = os.path.join(obj_folder, f"{obj}.png")  # Expected image file
+                if os.path.exists(obj_image_path):
+                    color_emoji = color_map.get(obj, '⬜')  # Default to white if not found
+                    st.markdown(f"{color_emoji} **{obj.capitalize()}:** {count}")
+                    st.image(obj_image_path) #, caption=f"{obj.capitalize()} (Count: {count})", use_column_width=True)
+                else:
+                    st.write(f"⚠️ No image found for {obj.capitalize()}")
+                
     except Exception as e:
         st.markdown("<h3 style='color: white;'>No Objects Detected!</h3>", unsafe_allow_html=True)
         st.error(f"Error: {str(e)}")
