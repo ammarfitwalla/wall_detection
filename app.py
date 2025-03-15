@@ -20,10 +20,10 @@ sample_images = [f for f in os.listdir(sample_images_path) if f.endswith(("jpg",
 
 # Dropdown menu to select sample images
 st.sidebar.write("## Try Sample Images")
-selected_sample = st.sidebar.selectbox("Choose a sample image", ["None"] + sample_images)
+selected_sample = st.sidebar.selectbox("", ["None"] + sample_images)
 
 # File uploader
-uploaded_file = st.file_uploader("Upload your own image", type=["jpg", "jpeg", "png"])
+uploaded_file = st.file_uploader("", type=["jpg", "jpeg", "png"])
 
 image_source = None
 uploaded_file_path = None
@@ -59,7 +59,7 @@ elif selected_sample != "None":
     st.image(image_source, caption=f"Sample Image: {selected_sample}")
 
 else:
-    st.info("Please upload an image or select a sample image from the left sidebar to proceed.")
+    st.info("Upload an image -or- select a sample image from the left sidebar to proceed.")
     st.stop()
 
 with st.spinner("Processing the image..."):
@@ -72,11 +72,45 @@ with st.spinner("Processing the image..."):
 
         time.sleep(0.5)
         # Split the image into sub-images if necessary
+        # print(f"Rows: {rows}, Cols: {cols}")
         if rows > 1 or cols > 1:
             sub_images, sub_height, sub_width = custom_wall_detection.split_image(image, rows, cols)
 
-            # Process each sub-image individually
-            processed_sub_images = [robolow_model_detections.process_image(config.API_URL, config.API_KEY, image_source, sub_image, config.roboflow_models) for sub_image in sub_images]
+            processed_sub_images, object_counts = [], {}
+            for i, sub_image in enumerate(sub_images):
+                image_path = os.path.join(user_folder, f"sub_image_{str(i)}.png")
+                cv2.imwrite(image_path, sub_image)
+                processed_sub_images_object_count_list = robolow_model_detections.process_image(config.API_URL, config.API_KEY, image_path, sub_image, config.roboflow_models)
+                processed_sub_images.append(processed_sub_images_object_count_list[0])
+
+                # Merge object counts correctly
+                for obj, count in processed_sub_images_object_count_list[1].items():
+                    object_counts[obj] = object_counts.get(obj, 0) + count
+
+                # object_counts.append(processed_sub_images_object_count_list[1])
+
+            # print(f"Object Counts: {object_counts}")
+
+                # processed_sub_images_object_count_list.append(robolow_model_detections.process_image(config.API_URL, config.API_KEY, image_path, sub_image, config.roboflow_models))
+
+            # # Process each sub-image individually
+            # processed_sub_images_object_count_list = [robolow_model_detections.process_image(config.API_URL, config.API_KEY, image_source, sub_image, config.roboflow_models) for sub_image in sub_images]
+            # print(f"Processed Sub-Images: {len(processed_sub_images_object_count_list)}")
+
+            # processed_sub_images = [image[0] for image in processed_sub_images_object_count_list if image is not None]
+            # object_counts = [obj[1] for obj in processed_sub_images_object_count_list if obj is not None]
+
+            # for processed_sub_image, object_counts in processed_sub_images:
+            #     print(type(processed_sub_image))
+
+            #     # processed_image = cv2.cvtColor(processed_sub_image, cv2.COLOR_BGR2RGB)
+            #     # processed_sub_image = Image.fromarray(processed_sub_image)
+            #     cv2.imshow("Image", processed_sub_image)
+            #     cv2.waitKey(0)
+            #     cv2.destroyAllWindows()
+
+
+            # print("Stitching the sub-images back together...")
 
             # Stitch the processed sub-images back together
             stitched_image = custom_wall_detection.stitch_images(
@@ -149,13 +183,16 @@ with st.spinner("Processing the image..."):
             for obj, count in object_counts.items():
                 st.markdown("<hr style='border: 1px solid white; margin: 30px 0;'>", unsafe_allow_html=True)
                 obj_folder = os.path.join(user_folder, obj)  # Folder containing images for this object
-                obj_image_path = os.path.join(obj_folder, f"{obj}.png")  # Expected image file
-                if os.path.exists(obj_image_path):
-                    color_emoji = color_map.get(obj, '⬜')  # Default to white if not found
-                    st.markdown(f"{color_emoji} **{obj.capitalize()}:** {count}")
-                    st.image(obj_image_path) #, caption=f"{obj.capitalize()} (Count: {count})", use_column_width=True)
-                else:
-                    st.write(f"⚠️ No image found for {obj.capitalize()}")
+                all_files = os.listdir(obj_folder)  # List all files in the folder
+                color_emoji = color_map.get(obj, '⬜')  # Default to white if not found
+                st.markdown(f"{color_emoji} **{obj.capitalize()}:** {count}")
+                for file in all_files:
+                    if file.endswith(".png"):
+                        obj_image_path = os.path.join(obj_folder, file)  # Expected image file
+                        if os.path.exists(obj_image_path):
+                            st.image(obj_image_path) #, caption=f"{obj.capitalize()} (Count: {count})", use_column_width=True)
+                        else:
+                            st.write(f"⚠️ No image found for {obj.capitalize()}")
                 
     except Exception as e:
         st.markdown("<h3 style='color: white;'>No Objects Detected!</h3>", unsafe_allow_html=True)

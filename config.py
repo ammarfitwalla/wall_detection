@@ -29,7 +29,7 @@ roboflow_models = {
     # },
     "toilet": {
         "model_id": "bathroom-tyaoe/9",
-        "confidence_threshold": 0.2,
+        "confidence_threshold": 0.3,
         "label_colors": {
             "sink": (0, 255, 0),  # Green
             "bathroom": (255, 0, 0),  # Orange

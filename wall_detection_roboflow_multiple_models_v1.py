@@ -1,7 +1,7 @@
+import datetime
 import os
 from inference_sdk import InferenceConfiguration, InferenceHTTPClient
 import cv2
-import numpy as np
 import pandas as pd
 
 # Function to initialize the client
@@ -17,10 +17,6 @@ def run_inference(client, image_path, model_id, confidence_threshold):
     client.configure(config)
     result = client.infer(image_path, model_id=model_id)
     return result
-
-import os
-import cv2
-import numpy as np
 
 # Function to draw bounding boxes on the image
 def draw_bounding_boxes(image, raw_input_image, process_image_path, result, label_colors, object_counts, color_mapping):
@@ -85,7 +81,14 @@ def draw_bounding_boxes(image, raw_input_image, process_image_path, result, labe
 
     # Save all object-specific images after looping
     for obj_name, obj_img in object_images.items():
-        save_path = os.path.join(process_image_path, obj_name, f"{obj_name}.png")
+        obj_folder = os.path.join(process_image_path, obj_name)
+        # cv2.imwrite(save_path, obj_img)
+
+        # Generate a unique filename using timestamp
+        timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S%f")  # Example: 20240312_153045123456
+        unique_filename = f"{obj_name}_{timestamp}.png"
+        
+        save_path = os.path.join(obj_folder, unique_filename)
         cv2.imwrite(save_path, obj_img)
 
     # Convert bounding box list to DataFrame and save as CSV
